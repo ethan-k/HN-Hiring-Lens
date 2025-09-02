@@ -22,8 +22,8 @@ function injectBar() {
   top.id = 'hnf-bar';
   top.innerHTML = `
     <div class="hnf-row">
-      <input id="hnf-include" placeholder="include: comma,separated" />
-      <input id="hnf-exclude" placeholder="exclude: comma,separated" />
+      <input id="hnf-include" placeholder="include: comma,separated" title="Include keywords (comma-separated). All must match." />
+      <input id="hnf-exclude" placeholder="exclude: comma,separated" title="Exclude keywords (comma-separated). Any match hides a comment." />
     </div>
     <div class="hnf-row">
       <label><input type="checkbox" id="hnf-remote"/>Remote</label>
