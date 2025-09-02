@@ -281,11 +281,8 @@ function applyFilters() {
       show = visibleTop.has(c.id);
       if (show) highlightMatches(c);
     } else {
-      if (topOnly || hideReplies) {
-        show = false;
-      } else {
-        show = visibleTop.has(c.topId);
-      }
+      // Preserve replies when filtering, unless explicitly hidden
+      show = !(topOnly || hideReplies);
     }
     c.row.classList.toggle('hnf-hide', !show);
   }
