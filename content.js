@@ -158,11 +158,15 @@ function getRows() {
   return $$('span.commtext').map(s => s.closest('tr')).filter(Boolean);
 }
 
+function getIndent(row) {
+  // HN uses an indent cell with a spacer image width = depth*40
+  const img = row?.querySelector('td.ind img[width]');
+  const w = img ? parseInt(img.getAttribute('width'), 10) : 0;
+  return Number.isFinite(w) ? w : 0;
+}
+
 function getTopLevel(row) {
-  // Look for HN's indent pixel trick
-  const ind = row?.previousElementSibling?.querySelector('img[src*="s.gif"][width]');
-  const w = ind ? parseInt(ind.getAttribute('width'),10) : 0;
-  return w === 0;
+  return getIndent(row) === 0;
 }
 
 function commentObj(row) {
@@ -175,6 +179,7 @@ function commentObj(row) {
 
   return {
     row, id, author, age, body, bodyEl, text,
+    indent: getIndent(row),
     flags: {
       remote: RE.remote.test(body),
       onsite: RE.onsite.test(body),
@@ -262,19 +267,31 @@ function applyFilters() {
   }
 
   // show/hide with subtree handling
+  const hideReplies = $('#hnf-hidereplies').checked;
+  let hiddenSubtreeIndent = -1; // width of the ancestor whose subtree is hidden
   for (const c of COMMENTS) {
-    const show = visible.has(c.row.id);
+    let show = visible.has(c.row.id);
+    const indent = c.indent ?? getIndent(c.row);
+
+    if (hideReplies) {
+      // If we're inside a hidden subtree, force-hide until we climb back
+      if (hiddenSubtreeIndent >= 0) {
+        if (indent > hiddenSubtreeIndent) {
+          show = false;
+        } else {
+          // exited the hidden subtree
+          hiddenSubtreeIndent = -1;
+        }
+      }
+      // Start hiding subtree from a hidden node
+      if (hiddenSubtreeIndent < 0 && !show) {
+        hiddenSubtreeIndent = indent;
+      }
+    }
+
     c.row.classList.toggle('hnf-hide', !show);
 
-    // Highlight matches in visible comments
-    if (show) {
-      highlightMatches(c);
-    }
-
-    // hide reply thread when requested
-    if ($('#hnf-hidereplies').checked && !show && !getTopLevel(c.row)) {
-      c.row.classList.add('hnf-hide');
-    }
+    if (show) highlightMatches(c);
   }
 
   $('#hnf-count').textContent = `${visible.size}/${COMMENTS.length} match`;
