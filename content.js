@@ -9,7 +9,7 @@ const storyId = new URL(location.href).searchParams.get("id") || "unknown";
 const DEFAULT_PREFS = {
   qInclude: "", qExclude: "",
   remote: false, onsite: false, salary: false,
-  topLevelOnly: false, hideReplies: true,
+  topLevelOnly: false, hideReplies: false,
   stacks: []
 };
 let prefs = {...DEFAULT_PREFS};
@@ -193,6 +193,12 @@ let COMMENTS = [];
 
 function buildIndex() {
   COMMENTS = getRows().map(commentObj);
+  // annotate each comment with its top-level ancestor id
+  let currentTopId = null;
+  for (const c of COMMENTS) {
+    if (getTopLevel(c.row)) currentTopId = c.id;
+    c.topId = currentTopId;
+  }
 }
 
 // --- filtering ---
@@ -200,7 +206,8 @@ function parseList(s) {
   return (s || '').split(',').map(t => t.trim()).filter(Boolean);
 }
 
-function matchComment(c) {
+function matchTopLevel(c) {
+  // Only evaluate filters on top-level comments
   const inc = parseList($('#hnf-include').value.toLowerCase());
   const exc = parseList($('#hnf-exclude').value.toLowerCase());
   const selectedStacks = $$('.hnf-stack:checked').map(cb => cb.value);
@@ -208,7 +215,6 @@ function matchComment(c) {
   if ($('#hnf-remote').checked && !c.flags.remote) return false;
   if ($('#hnf-onsite').checked && !c.flags.onsite) return false;
   if ($('#hnf-salary').checked && !c.flags.salary) return false;
-  if ($('#hnf-toplevel').checked && !getTopLevel(c.row)) return false;
 
   // Stack filtering - if any stacks are selected, comment must match at least one
   if (selectedStacks.length > 0) {
@@ -258,43 +264,33 @@ function applyFilters() {
   };
   save();
 
-  // compute visible ids
-  const visible = new Set();
-  for (const c of COMMENTS) {
-    if (matchComment(c)) {
-      visible.add(c.row.id);
-    }
+  // compute visible top-level ids only
+  const visibleTop = new Set();
+  const topLevelComments = COMMENTS.filter(c => getTopLevel(c.row));
+  for (const c of topLevelComments) {
+    if (matchTopLevel(c)) visibleTop.add(c.id);
   }
 
-  // show/hide with subtree handling
   const hideReplies = $('#hnf-hidereplies').checked;
-  let hiddenSubtreeIndent = -1; // width of the ancestor whose subtree is hidden
-  for (const c of COMMENTS) {
-    let show = visible.has(c.row.id);
-    const indent = c.indent ?? getIndent(c.row);
+  const topOnly = $('#hnf-toplevel').checked;
 
-    if (hideReplies) {
-      // If we're inside a hidden subtree, force-hide until we climb back
-      if (hiddenSubtreeIndent >= 0) {
-        if (indent > hiddenSubtreeIndent) {
-          show = false;
-        } else {
-          // exited the hidden subtree
-          hiddenSubtreeIndent = -1;
-        }
-      }
-      // Start hiding subtree from a hidden node
-      if (hiddenSubtreeIndent < 0 && !show) {
-        hiddenSubtreeIndent = indent;
+  for (const c of COMMENTS) {
+    let show;
+    const isTop = getTopLevel(c.row);
+    if (isTop) {
+      show = visibleTop.has(c.id);
+      if (show) highlightMatches(c);
+    } else {
+      if (topOnly || hideReplies) {
+        show = false;
+      } else {
+        show = visibleTop.has(c.topId);
       }
     }
-
     c.row.classList.toggle('hnf-hide', !show);
-
-    if (show) highlightMatches(c);
   }
 
-  $('#hnf-count').textContent = `${visible.size}/${COMMENTS.length} match`;
+  $('#hnf-count').textContent = `${visibleTop.size}/${topLevelComments.length} match`;
 }
 
 function save() {
