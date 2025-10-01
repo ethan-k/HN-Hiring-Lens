@@ -9,8 +9,12 @@ const storyId = new URL(location.href).searchParams.get("id") || "unknown";
 const DEFAULT_PREFS = {
   qInclude: "", qExclude: "",
   remote: false, onsite: false, salary: false,
-  topLevelOnly: false, hideReplies: false,
-  stacks: []
+  topLevelOnly: false,
+  hideUSOnly: false,
+  stacks: [],
+  employmentTypes: [],
+  seniorities: [],
+  roleTypes: []
 };
 let prefs = {...DEFAULT_PREFS};
 
@@ -30,10 +34,41 @@ function injectBar() {
       <label><input type="checkbox" id="hnf-onsite"/>Onsite/Hybrid</label>
       <label><input type="checkbox" id="hnf-salary"/>Has salary</label>
       <label><input type="checkbox" id="hnf-toplevel"/>Top-level only</label>
-      <label><input type="checkbox" id="hnf-hidereplies" checked/>Hide replies</label>
+      <label><input type="checkbox" id="hnf-hide-us-only"/>Hide US-only</label>
+    </div>
+    <div class="hnf-row">
+      <div class="hnf-filter-group">
+        <strong>Employment:</strong>
+        <label><input type="checkbox" class="hnf-employment" value="fulltime"/>Full-time</label>
+        <label><input type="checkbox" class="hnf-employment" value="parttime"/>Part-time</label>
+        <label><input type="checkbox" class="hnf-employment" value="contract"/>Contract</label>
+        <label><input type="checkbox" class="hnf-employment" value="intern"/>Intern</label>
+      </div>
+    </div>
+    <div class="hnf-row">
+      <div class="hnf-filter-group">
+        <strong>Seniority:</strong>
+        <label><input type="checkbox" class="hnf-seniority" value="junior"/>Junior</label>
+        <label><input type="checkbox" class="hnf-seniority" value="mid"/>Mid-level</label>
+        <label><input type="checkbox" class="hnf-seniority" value="senior"/>Senior</label>
+        <label><input type="checkbox" class="hnf-seniority" value="staff"/>Staff/Principal</label>
+      </div>
+    </div>
+    <div class="hnf-row">
+      <div class="hnf-filter-group">
+        <strong>Role:</strong>
+        <label><input type="checkbox" class="hnf-role" value="backend"/>Backend</label>
+        <label><input type="checkbox" class="hnf-role" value="frontend"/>Frontend</label>
+        <label><input type="checkbox" class="hnf-role" value="fullstack"/>Full-stack</label>
+        <label><input type="checkbox" class="hnf-role" value="devops"/>DevOps</label>
+        <label><input type="checkbox" class="hnf-role" value="mobile"/>Mobile</label>
+        <label><input type="checkbox" class="hnf-role" value="data"/>Data/ML</label>
+        <label><input type="checkbox" class="hnf-role" value="security"/>Security</label>
+      </div>
     </div>
     <div class="hnf-row">
       <div class="hnf-stacks">
+        <strong>Tech Stack:</strong>
         <label><input type="checkbox" class="hnf-stack" value="go"/>Go</label>
         <label><input type="checkbox" class="hnf-stack" value="rust"/>Rust</label>
         <label><input type="checkbox" class="hnf-stack" value="java"/>Java</label>
@@ -50,6 +85,7 @@ function injectBar() {
     </div>
     <div class="hnf-row">
       <button id="hnf-clear">Clear</button>
+      <button id="hnf-check-applied">Check Applied</button>
       <button id="hnf-copy-emails">Copy Emails</button>
       <button id="hnf-export-csv">Export CSV</button>
       <span id="hnf-count"></span>
@@ -75,16 +111,31 @@ function wireEvents() {
   const bind = (id, type='input') =>
     $(id).addEventListener(type, debounce(applyFilters, 120));
 
-  bind('#hnf-include'); 
+  bind('#hnf-include');
   bind('#hnf-exclude');
-  bind('#hnf-remote','change'); 
+  bind('#hnf-remote','change');
   bind('#hnf-onsite','change');
-  bind('#hnf-salary','change'); 
+  bind('#hnf-salary','change');
   bind('#hnf-toplevel','change');
-  bind('#hnf-hidereplies','change');
+  bind('#hnf-hide-us-only','change');
 
   // Stack checkboxes
   $$('.hnf-stack').forEach(checkbox => {
+    checkbox.addEventListener('change', debounce(applyFilters, 120));
+  });
+
+  // Employment type checkboxes
+  $$('.hnf-employment').forEach(checkbox => {
+    checkbox.addEventListener('change', debounce(applyFilters, 120));
+  });
+
+  // Seniority checkboxes
+  $$('.hnf-seniority').forEach(checkbox => {
+    checkbox.addEventListener('change', debounce(applyFilters, 120));
+  });
+
+  // Role type checkboxes
+  $$('.hnf-role').forEach(checkbox => {
     checkbox.addEventListener('change', debounce(applyFilters, 120));
   });
 
@@ -95,6 +146,7 @@ function wireEvents() {
     applyFilters();
   });
 
+  $('#hnf-check-applied').addEventListener('click', checkApplied);
   $('#hnf-copy-emails').addEventListener('click', copyEmails);
   $('#hnf-export-csv').addEventListener('click', exportCSV);
 
@@ -102,14 +154,13 @@ function wireEvents() {
   document.addEventListener('keydown', (e) => {
     // Only trigger if not in an input field
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    
-    if (e.key === '/') { 
-      e.preventDefault(); 
-      $('#hnf-include').focus(); 
+
+    if (e.key === '/') {
+      e.preventDefault();
+      $('#hnf-include').focus();
     }
     if (e.key === 'r') $('#hnf-remote').click();
     if (e.key === 't') $('#hnf-toplevel').click();
-    if (e.key === 'h') $('#hnf-hidereplies').click();
     if (e.key === 'x') $('#hnf-clear').click();
   });
 }
@@ -121,11 +172,26 @@ function restoreUI() {
   $('#hnf-onsite').checked = prefs.onsite;
   $('#hnf-salary').checked = prefs.salary;
   $('#hnf-toplevel').checked = prefs.topLevelOnly;
-  $('#hnf-hidereplies').checked = prefs.hideReplies;
-  
+  $('#hnf-hide-us-only').checked = prefs.hideUSOnly;
+
   // Restore stack selections
   $$('.hnf-stack').forEach(checkbox => {
     checkbox.checked = prefs.stacks.includes(checkbox.value);
+  });
+
+  // Restore employment type selections
+  $$('.hnf-employment').forEach(checkbox => {
+    checkbox.checked = prefs.employmentTypes.includes(checkbox.value);
+  });
+
+  // Restore seniority selections
+  $$('.hnf-seniority').forEach(checkbox => {
+    checkbox.checked = prefs.seniorities.includes(checkbox.value);
+  });
+
+  // Restore role type selections
+  $$('.hnf-role').forEach(checkbox => {
+    checkbox.checked = prefs.roleTypes.includes(checkbox.value);
   });
 }
 
@@ -134,6 +200,7 @@ const RE = {
   onsite: /\b(onsite|on-site|hybrid)\b/i,
   salary: /([$€£]\s?\d{2,3}k|\b\d{2,3}k\b|\b(comp|salary|pay|ote)\b)/i,
   tz: /\bUTC ?[+-]?\d{1,2}\b|\b(ET|PT|CET|CEST|IST|BST|GMT|PST|EST|KST|JST)\b/i,
+  usOnly: /\b(US.only|USA.only|US.based.only|United States.only|U\.?S\.?\s+only|US.citizens?.only|US.?.work.authorization|must.be.in.the.US|must.be.based.in.the.US|US.?.location.required|US.?.residency.required)\b/i,
   stacks: {
     go: /\b(go|golang)\b/i,
     rust: /\brust\b/i,
@@ -147,6 +214,27 @@ const RE = {
     kubernetes: /\b(kubernetes|k8s)\b/i,
     postgres: /\b(postgres|postgresql)\b/i,
     kafka: /\bkafka\b/i
+  },
+  employmentTypes: {
+    fulltime: /\b(FT|full.?time|full.time)\b/i,
+    parttime: /\b(PT|part.?time|part.time)\b/i,
+    contract: /\b(contract|contractor|consulting|freelance)\b/i,
+    intern: /\b(intern|internship)\b/i
+  },
+  seniorities: {
+    senior: /\b(senior|sr\.?|lead)\b/i,
+    staff: /\b(staff|principal|architect)\b/i,
+    mid: /\b(mid.level|intermediate)\b/i,
+    junior: /\b(junior|jr\.?|entry.level)\b/i
+  },
+  roleTypes: {
+    backend: /\b(backend|back.end|BE|server.side)\b/i,
+    frontend: /\b(frontend|front.end|FE|client.side)\b/i,
+    fullstack: /\b(fullstack|full.stack|full stack)\b/i,
+    devops: /\b(devops|sre|platform|infrastructure)\b/i,
+    mobile: /\b(mobile|ios|android|react.native)\b/i,
+    data: /\b(data engineer|data scientist|ML|machine learning|AI)\b/i,
+    security: /\b(security|infosec|appsec)\b/i
   }
 };
 
@@ -159,10 +247,10 @@ function getRows() {
 }
 
 function getIndent(row) {
-  // HN uses an indent cell with a spacer image width = depth*40
-  const img = row?.querySelector('td.ind img[width]');
-  const w = img ? parseInt(img.getAttribute('width'), 10) : 0;
-  return Number.isFinite(w) ? w : 0;
+  // HN stores indent level in the indent attribute on td.ind
+  const indentCell = row?.querySelector('td.ind');
+  const indentAttr = indentCell ? parseInt(indentCell.getAttribute('indent'), 10) : 0;
+  return Number.isFinite(indentAttr) ? indentAttr : 0;
 }
 
 function getTopLevel(row) {
@@ -170,7 +258,8 @@ function getTopLevel(row) {
 }
 
 function commentObj(row) {
-  const bodyEl = $('span.commtext', row);
+  // HN uses both span.commtext and div.commtext for comment bodies
+  const bodyEl = $('span.commtext', row) || $('.commtext', row);
   const body = bodyEl?.innerText || '';
   const author = $('a.hnuser', row)?.innerText || '';
   const age = $('span.age a', row)?.innerText || '';
@@ -184,7 +273,11 @@ function commentObj(row) {
       remote: RE.remote.test(body),
       onsite: RE.onsite.test(body),
       salary: RE.salary.test(body),
-      stacks: Object.keys(RE.stacks).filter(stack => RE.stacks[stack].test(body))
+      usOnly: RE.usOnly.test(body),
+      stacks: Object.keys(RE.stacks).filter(stack => RE.stacks[stack].test(body)),
+      employmentTypes: Object.keys(RE.employmentTypes).filter(type => RE.employmentTypes[type].test(body)),
+      seniorities: Object.keys(RE.seniorities).filter(level => RE.seniorities[level].test(body)),
+      roleTypes: Object.keys(RE.roleTypes).filter(role => RE.roleTypes[role].test(body))
     }
   };
 }
@@ -211,15 +304,37 @@ function matchTopLevel(c) {
   const inc = parseList($('#hnf-include').value.toLowerCase());
   const exc = parseList($('#hnf-exclude').value.toLowerCase());
   const selectedStacks = $$('.hnf-stack:checked').map(cb => cb.value);
+  const selectedEmployment = $$('.hnf-employment:checked').map(cb => cb.value);
+  const selectedSeniorities = $$('.hnf-seniority:checked').map(cb => cb.value);
+  const selectedRoles = $$('.hnf-role:checked').map(cb => cb.value);
 
   if ($('#hnf-remote').checked && !c.flags.remote) return false;
   if ($('#hnf-onsite').checked && !c.flags.onsite) return false;
   if ($('#hnf-salary').checked && !c.flags.salary) return false;
+  if ($('#hnf-hide-us-only').checked && c.flags.usOnly) return false;
 
   // Stack filtering - if any stacks are selected, comment must match at least one
   if (selectedStacks.length > 0) {
     const hasMatchingStack = selectedStacks.some(stack => c.flags.stacks.includes(stack));
     if (!hasMatchingStack) return false;
+  }
+
+  // Employment type filtering - if any types selected, comment must match at least one
+  if (selectedEmployment.length > 0) {
+    const hasMatchingEmployment = selectedEmployment.some(type => c.flags.employmentTypes.includes(type));
+    if (!hasMatchingEmployment) return false;
+  }
+
+  // Seniority filtering - if any levels selected, comment must match at least one
+  if (selectedSeniorities.length > 0) {
+    const hasMatchingSeniority = selectedSeniorities.some(level => c.flags.seniorities.includes(level));
+    if (!hasMatchingSeniority) return false;
+  }
+
+  // Role type filtering - if any roles selected, comment must match at least one
+  if (selectedRoles.length > 0) {
+    const hasMatchingRole = selectedRoles.some(role => c.flags.roleTypes.includes(role));
+    if (!hasMatchingRole) return false;
   }
 
   if (inc.length && !inc.every(k => c.text.includes(k))) return false;
@@ -259,8 +374,11 @@ function applyFilters() {
     onsite: $('#hnf-onsite').checked,
     salary: $('#hnf-salary').checked,
     topLevelOnly: $('#hnf-toplevel').checked,
-    hideReplies: $('#hnf-hidereplies').checked,
-    stacks: $$('.hnf-stack:checked').map(cb => cb.value)
+    hideUSOnly: $('#hnf-hide-us-only').checked,
+    stacks: $$('.hnf-stack:checked').map(cb => cb.value),
+    employmentTypes: $$('.hnf-employment:checked').map(cb => cb.value),
+    seniorities: $$('.hnf-seniority:checked').map(cb => cb.value),
+    roleTypes: $$('.hnf-role:checked').map(cb => cb.value)
   };
   save();
 
@@ -271,7 +389,6 @@ function applyFilters() {
     if (matchTopLevel(c)) visibleTop.add(c.id);
   }
 
-  const hideReplies = $('#hnf-hidereplies').checked;
   const topOnly = $('#hnf-toplevel').checked;
 
   for (const c of COMMENTS) {
@@ -281,8 +398,9 @@ function applyFilters() {
       show = visibleTop.has(c.id);
       if (show) highlightMatches(c);
     } else {
-      // Preserve replies when filtering, unless explicitly hidden
-      show = !(topOnly || hideReplies);
+      // For replies: show if parent is visible, unless top-level only is checked
+      const parentVisible = visibleTop.has(c.topId);
+      show = parentVisible && !topOnly;
     }
     c.row.classList.toggle('hnf-hide', !show);
   }
@@ -356,15 +474,15 @@ function copyEmails() {
 // --- CSV Export ---
 function exportCSV() {
   const visibleComments = COMMENTS.filter(c => !c.row.classList.contains('hnf-hide'));
-  
+
   if (visibleComments.length === 0) {
     alert('No visible comments to export');
     return;
   }
-  
-  const headers = ['ID', 'Author', 'Age', 'Remote', 'Onsite', 'Salary', 'Stacks', 'Comment'];
+
+  const headers = ['ID', 'Author', 'Age', 'Remote', 'Onsite', 'Salary', 'US-Only', 'Employment', 'Seniority', 'Role', 'Stacks', 'Comment'];
   const rows = [headers];
-  
+
   visibleComments.forEach(c => {
     rows.push([
       c.id,
@@ -373,15 +491,19 @@ function exportCSV() {
       c.flags.remote ? 'Yes' : 'No',
       c.flags.onsite ? 'Yes' : 'No',
       c.flags.salary ? 'Yes' : 'No',
+      c.flags.usOnly ? 'Yes' : 'No',
+      c.flags.employmentTypes.join(';'),
+      c.flags.seniorities.join(';'),
+      c.flags.roleTypes.join(';'),
       c.flags.stacks.join(';'),
       '"' + c.body.replace(/"/g, '""') + '"' // Escape quotes in CSV
     ]);
   });
-  
+
   const csvContent = rows.map(row => row.join(',')).join('\n');
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
-  
+
   if (link.download !== undefined) {
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
@@ -391,6 +513,62 @@ function exportCSV() {
     link.click();
     document.body.removeChild(link);
     alert(`Exported ${visibleComments.length} comments to CSV`);
+  }
+}
+
+// --- Check Applied Filters ---
+function checkApplied() {
+  const activeFilters = [];
+
+  // Check text filters
+  const includeText = $('#hnf-include').value.trim();
+  const excludeText = $('#hnf-exclude').value.trim();
+
+  if (includeText) {
+    activeFilters.push(`Include: "${includeText}"`);
+  }
+
+  if (excludeText) {
+    activeFilters.push(`Exclude: "${excludeText}"`);
+  }
+
+  // Check checkbox filters
+  if ($('#hnf-remote').checked) activeFilters.push('Remote jobs only');
+  if ($('#hnf-onsite').checked) activeFilters.push('Onsite/Hybrid jobs only');
+  if ($('#hnf-salary').checked) activeFilters.push('Jobs with salary info');
+  if ($('#hnf-toplevel').checked) activeFilters.push('Top-level comments only');
+  if ($('#hnf-hide-us-only').checked) activeFilters.push('Hide US-only jobs');
+
+  // Check employment type filters
+  const selectedEmployment = $$('.hnf-employment:checked').map(cb => cb.value);
+  if (selectedEmployment.length > 0) {
+    activeFilters.push(`Employment types: ${selectedEmployment.join(', ')}`);
+  }
+
+  // Check seniority filters
+  const selectedSeniorities = $$('.hnf-seniority:checked').map(cb => cb.value);
+  if (selectedSeniorities.length > 0) {
+    activeFilters.push(`Seniority levels: ${selectedSeniorities.join(', ')}`);
+  }
+
+  // Check role type filters
+  const selectedRoles = $$('.hnf-role:checked').map(cb => cb.value);
+  if (selectedRoles.length > 0) {
+    activeFilters.push(`Role types: ${selectedRoles.join(', ')}`);
+  }
+
+  // Check tech stack filters
+  const selectedStacks = $$('.hnf-stack:checked').map(cb => cb.value);
+  if (selectedStacks.length > 0) {
+    activeFilters.push(`Tech stacks: ${selectedStacks.join(', ')}`);
+  }
+
+  // Display results
+  if (activeFilters.length === 0) {
+    alert('No filters are currently active.\nShowing all comments.');
+  } else {
+    const message = `Active filters:\n\n${activeFilters.map((filter, i) => `${i + 1}. ${filter}`).join('\n')}`;
+    alert(message);
   }
 }
 
@@ -405,3 +583,4 @@ function exportCSV() {
     applyFilters();
   }, 1000);
 })();
+// trigger rebuild

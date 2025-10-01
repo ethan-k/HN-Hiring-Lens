@@ -1,0 +1,164 @@
+= HN Hiring Lens
+:toc: left
+:toclevels: 3
+:sectlinks:
+:sectanchors:
+:source-highlighter: highlight.js
+
+An unofficial Chrome extension that adds powerful filtering and highlighting capabilities to Hacker News "Who is hiring?" threads and any HN comment thread.
+
+== 🚀 Quick Start
+
+=== Development
+
+[source,bash]
+----
+pnpm install
+pnpm run dev          # Build for development
+pnpm run watch        # Auto-rebuild on changes
+----
+
+=== Production
+
+[source,bash]
+----
+pnpm run release      # Test, lint, and package
+----
+
+=== Available Scripts
+
+* `pnpm run build` - Build extension to dist/ folder
+* `pnpm run package` - Create installable .zip file
+* `pnpm run dev` - Build for development testing
+* `pnpm run validate` - Check manifest.json validity
+* `pnpm run lint` - Fix JavaScript code style
+* `pnpm run watch` - Auto-rebuild on file changes
+* `pnpm run clean` - Remove build artifacts
+* `pnpm run test` - Run validation and linting
+* `pnpm run release` - Full build and package for distribution
+
+== 📦 Installation
+
+=== Method 1: From Source (Recommended for Development)
+
+[source,bash]
+----
+git clone <repository>
+cd hn-hiring-lens
+pnpm install
+pnpm run dev
+----
+
+Then in Chrome:
+
+1. Go to `chrome://extensions/`
+2. Enable "Developer mode"
+3. Click "Load unpacked" and select the `dist/` folder
+
+=== Method 2: From Package
+
+[source,bash]
+----
+pnpm run package
+----
+
+Install the generated `.zip` file in Chrome extensions.
+
+== ✨ Features
+
+=== Core Filtering
+
+* **Include/Exclude Search**: Comma-separated keywords
+* **Quick Toggles**: Remote, Onsite/Hybrid, Salary, Top-level only
+* **Technology Stack Filters**: Go, Rust, Java, Python, TypeScript, React, AWS, etc.
+* **Match Highlighting**: Yellow highlighting of search terms
+* **Persistent Settings**: Per-thread filter memory
+
+=== Export & Utilities  
+
+* **Email Extraction**: Copy all emails from visible comments
+* **CSV Export**: Download filtered results with metadata
+* **Live Counter**: Real-time match statistics
+
+=== Keyboard Shortcuts
+
+* `/` - Focus search
+* `r` - Toggle remote filter  
+* `t` - Toggle top-level only
+* `h` - Toggle hide replies
+* `x` - Clear all filters
+
+== 🏗️ Architecture
+
+[source,text]
+----
+hn-hiring-lens/
+├── manifest.json              # Extension manifest (MV3)
+├── content.js                 # Main filtering logic
+├── background.js              # Background service worker
+├── sidepanel.js               # Side panel functionality
+├── sidepanel.html             # Side panel UI
+├── styles.css                 # Extension styling
+├── icons/                     # Extension icons (16, 32, 48, 128)
+├── scripts/                   # Build automation
+│   ├── build.js               # Build process
+│   ├── package.js             # Packaging script
+│   └── validate-manifest.js   # Manifest validation
+├── specs/                     # Documentation & plans
+├── dist/                      # Built extension (generated)
+└── package.json               # Dependencies & scripts
+----
+
+=== Key Design Principles
+
+* **Zero Dependencies**: Pure vanilla JavaScript
+* **Lightweight**: Minimal background service worker with side panel UI
+* **Stable Selectors**: Uses HN's established CSS classes
+* **Graceful Degradation**: Works even with minor HN markup changes
+* **Thread-Specific Storage**: Each thread remembers its filter state
+
+== 🛠️ Development
+
+=== File Watching
+
+[source,bash]
+----
+pnpm run watch
+----
+
+Automatically rebuilds when source files change.
+
+=== Linting
+
+[source,bash]
+----
+pnpm run lint
+----
+
+Fixes JavaScript style issues using ESLint.
+
+=== Validation
+
+[source,bash]
+----
+pnpm run validate
+----
+
+Checks manifest.json and verifies all referenced files exist.
+
+== 📋 Browser Compatibility
+
+* Chrome 88+ (Manifest V3 required)
+* Edge 88+ (Chromium-based)
+
+== 🔮 Future Enhancements
+
+* [ ] Algolia API fallback for robust indexing
+* [ ] Custom technology stack configuration  
+* [ ] Additional export formats (JSON, XML)
+* [ ] Dark mode support
+* [ ] Advanced regex patterns for job detection
+
+== 📝 License
+
+MIT License

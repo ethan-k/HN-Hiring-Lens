@@ -7,8 +7,8 @@
   background: #fffbf2;
   border: 1px solid #f0e0c0;
   border-radius: 4px;
-  padding: 8px;
-  margin: 8px 0;
+  padding: 16px;
+  margin: 16px 0;
   font: 13px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   width: 100%;
@@ -17,10 +17,10 @@
 
 .hnf-row {
   display: flex; 
-  gap: 8px; 
+  gap: 12px; 
   align-items: center; 
   flex-wrap: wrap;
-  margin-bottom: 6px;
+  margin-bottom: 12px;
 }
 
 .hnf-row:last-child {
@@ -28,7 +28,7 @@
 }
 
 #hnf-bar input[type="text"], #hnf-bar input[type="search"] {
-  padding: 4px 8px; 
+  padding: 8px 12px; 
   border: 1px solid #d8c9a7; 
   border-radius: 3px;
   font-size: 13px;
@@ -61,9 +61,9 @@
 #hnf-bar label {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   cursor: pointer;
-  padding: 2px 6px;
+  padding: 6px 10px;
   border-radius: 3px;
   transition: background-color 0.2s;
 }
@@ -77,15 +77,52 @@
   cursor: pointer;
 }
 
+.hnf-filter-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  width: 100%;
+}
+
+.hnf-filter-group strong {
+  color: #666;
+  font-size: 12px;
+  margin-right: 4px;
+}
+
+.hnf-filter-group label {
+  font-size: 12px;
+  padding: 4px 10px;
+  background: #f6f6f0;
+  border: 1px solid #e6e6e0;
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+
+.hnf-filter-group label:hover {
+  background: #ff6600;
+  color: white;
+  border-color: #ff6600;
+}
+
 .hnf-stacks {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
+  width: 100%;
+}
+
+.hnf-stacks strong {
+  color: #666;
+  font-size: 12px;
+  margin-right: 4px;
 }
 
 .hnf-stacks label {
   font-size: 12px;
-  padding: 2px 8px;
+  padding: 4px 10px;
   background: #f6f6f0;
   border: 1px solid #e6e6e0;
   border-radius: 12px;
@@ -102,7 +139,7 @@
   font-weight: bold;
 }
 
-#hnf-clear, #hnf-copy-emails, #hnf-export-csv {
+#hnf-clear, #hnf-check-applied, #hnf-copy-emails, #hnf-export-csv {
   background: #ff6600;
   color: white;
   border: none;
@@ -114,7 +151,7 @@
   transition: background-color 0.2s;
 }
 
-#hnf-clear:hover, #hnf-copy-emails:hover, #hnf-export-csv:hover {
+#hnf-clear:hover, #hnf-check-applied:hover, #hnf-copy-emails:hover, #hnf-export-csv:hover {
   background: #e55a00;
 }
 
@@ -124,6 +161,14 @@
 
 #hnf-copy-emails:hover {
   background: #218838;
+}
+
+#hnf-check-applied {
+  background: #6f42c1;
+}
+
+#hnf-check-applied:hover {
+  background: #5a32a3;
 }
 
 #hnf-export-csv {
