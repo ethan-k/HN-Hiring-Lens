@@ -9,7 +9,7 @@
     "dev": "npm run build",
     "validate": "node scripts/validate-manifest.js",
     "lint": "eslint hn-thread-filter/*.js --fix",
-    "watch": "nodemon --watch hn-thread-filter --ext js,css,json --exec 'npm run build'",
+    "watch": "nodemon --watch content.js --watch styles.css --watch manifest.json --watch icons --ext js,css,json,png,svg --ignore dist/** --exec \"npm run build\"",
     "clean": "rm -rf dist *.zip",
     "test": "npm run validate && npm run lint",
     "release": "npm run test && npm run package"
@@ -25,7 +25,7 @@
   "license": "MIT",
   "devDependencies": {
     "eslint": "^8.0.0",
-    "nodemon": "^3.0.0"
+    "nodemon": "^3.1.10"
   },
   "repository": {
     "type": "git",

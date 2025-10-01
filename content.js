@@ -200,7 +200,7 @@ const RE = {
   onsite: /\b(onsite|on-site|hybrid)\b/i,
   salary: /([$€£]\s?\d{2,3}k|\b\d{2,3}k\b|\b(comp|salary|pay|ote)\b)/i,
   tz: /\bUTC ?[+-]?\d{1,2}\b|\b(ET|PT|CET|CEST|IST|BST|GMT|PST|EST|KST|JST)\b/i,
-  usOnly: /\b(US.only|USA.only|US.based.only|United States.only|U\.?S\.?\s+only|US.citizens?.only|US.?.work.authorization|must.be.in.the.US|must.be.based.in.the.US|US.?.location.required|US.?.residency.required)\b/i,
+  usOnly: /\b(US.only|USA.only|US.based.only|United States.only|U\.?S\.?\s+only|US.citizens?.only|US.?.work.authorization|must.be.in.the.US|must.be.based.in.the.US|US.?.location.required|US.?.residency.required|US.Remote|USA.Remote|Remote.US|Remote.USA|Remote.\(US|Remote.\(USA)\b/i,
   stacks: {
     go: /\b(go|golang)\b/i,
     rust: /\brust\b/i,
