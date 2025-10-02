@@ -17,8 +17,11 @@ fs.mkdirSync(distDir, { recursive: true });
 // Copy essential files only
 const filesToCopy = [
   'manifest.json',
-  'content.js', 
-  'styles.css'
+  'content.js',
+  'styles.css',
+  'background.js',
+  'sidepanel.html',
+  'sidepanel.js'
 ];
 
 

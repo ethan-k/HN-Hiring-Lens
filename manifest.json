@@ -3,13 +3,19 @@
   "name": "HN Hiring Lens",
   "version": "0.1.0",
   "description": "Filter & highlight comments inline on any HN thread.",
-  "permissions": ["storage", "activeTab"],
+  "permissions": ["storage", "activeTab", "sidePanel"],
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [{
     "matches": ["https://news.ycombinator.com/item?id=*"],
     "js": ["content.js"],
     "css": ["styles.css"],
     "run_at": "document_idle"
   }],
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
   "icons": {
     "16": "icons/16.png",
     "48": "icons/48.png",
