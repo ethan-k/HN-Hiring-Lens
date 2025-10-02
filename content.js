@@ -22,7 +22,7 @@ let savedJobs = {}; // Format: { [commentId]: { id, author, age, body, savedAt }
 // --- mount UI ---
 function injectBar() {
   if ($('#hnf-bar')) return;
-  
+
   const top = document.createElement('div');
   top.id = 'hnf-bar';
   top.innerHTML = `
@@ -94,7 +94,24 @@ function injectBar() {
     </div>
   `;
 
-  // Create sidebar for saved jobs
+  // Place the bar directly after the story header table (fatitem)
+  // and inside the same container cell so it spans the main column.
+  const fat = document.querySelector('table.fatitem');
+  if (fat && fat.parentElement) {
+    fat.parentElement.insertBefore(top, fat.nextSibling);
+  } else {
+    // Fallback: append to the main container cell
+    const mainCell = document.querySelector('#hnmain td');
+    if (mainCell) mainCell.insertBefore(top, mainCell.firstChild);
+    else document.body.prepend(top);
+  }
+  
+  wireEvents();
+}
+
+function injectSidebar() {
+  if ($('#hnf-sidebar')) return;
+
   const sidebar = document.createElement('div');
   sidebar.id = 'hnf-sidebar';
   sidebar.innerHTML = `
@@ -109,20 +126,6 @@ function injectBar() {
     <div id="hnf-saved-list"></div>
   `;
   document.body.appendChild(sidebar);
-  
-  // Place the bar directly after the story header table (fatitem)
-  // and inside the same container cell so it spans the main column.
-  const fat = document.querySelector('table.fatitem');
-  if (fat && fat.parentElement) {
-    fat.parentElement.insertBefore(top, fat.nextSibling);
-  } else {
-    // Fallback: append to the main container cell
-    const mainCell = document.querySelector('#hnmain td');
-    if (mainCell) mainCell.insertBefore(top, mainCell.firstChild);
-    else document.body.prepend(top);
-  }
-  
-  wireEvents();
 }
 
 function wireEvents() {
@@ -672,6 +675,10 @@ function updateSavedCount() {
 
 function toggleSidebar() {
   const sidebar = $('#hnf-sidebar');
+  if (!sidebar) {
+    console.error('Sidebar not found');
+    return;
+  }
   sidebar.classList.toggle('hnf-sidebar-open');
   renderSavedList();
 }
@@ -794,6 +801,7 @@ function clearSavedJobs() {
   // Wait a bit for HN to finish loading
   setTimeout(async () => {
     injectBar();
+    injectSidebar();
     await load();
     await loadSavedJobs();
     restoreUI();
