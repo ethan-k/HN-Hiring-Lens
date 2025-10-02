@@ -17,6 +17,7 @@ const DEFAULT_PREFS = {
   roleTypes: []
 };
 let prefs = {...DEFAULT_PREFS};
+let savedJobs = {}; // Format: { [commentId]: { id, author, age, body, savedAt } }
 
 // --- mount UI ---
 function injectBar() {
@@ -88,9 +89,26 @@ function injectBar() {
       <button id="hnf-check-applied">Check Applied</button>
       <button id="hnf-copy-emails">Copy Emails</button>
       <button id="hnf-export-csv">Export CSV</button>
+      <button id="hnf-toggle-sidebar">Saved Jobs (<span id="hnf-saved-count">0</span>)</button>
       <span id="hnf-count"></span>
     </div>
   `;
+
+  // Create sidebar for saved jobs
+  const sidebar = document.createElement('div');
+  sidebar.id = 'hnf-sidebar';
+  sidebar.innerHTML = `
+    <div class="hnf-sidebar-header">
+      <h3>Saved Jobs</h3>
+      <button id="hnf-close-sidebar">×</button>
+    </div>
+    <div class="hnf-sidebar-actions">
+      <button id="hnf-export-saved">Export Saved</button>
+      <button id="hnf-clear-saved">Clear All</button>
+    </div>
+    <div id="hnf-saved-list"></div>
+  `;
+  document.body.appendChild(sidebar);
   
   // Place the bar directly after the story header table (fatitem)
   // and inside the same container cell so it spans the main column.
@@ -149,6 +167,10 @@ function wireEvents() {
   $('#hnf-check-applied').addEventListener('click', checkApplied);
   $('#hnf-copy-emails').addEventListener('click', copyEmails);
   $('#hnf-export-csv').addEventListener('click', exportCSV);
+  $('#hnf-toggle-sidebar').addEventListener('click', toggleSidebar);
+  $('#hnf-close-sidebar').addEventListener('click', closeSidebar);
+  $('#hnf-export-saved').addEventListener('click', exportSavedJobs);
+  $('#hnf-clear-saved').addEventListener('click', clearSavedJobs);
 
   // keyboard shortcuts
   document.addEventListener('keydown', (e) => {
@@ -292,6 +314,23 @@ function buildIndex() {
     if (getTopLevel(c.row)) currentTopId = c.id;
     c.topId = currentTopId;
   }
+
+  // Add save buttons to top-level comments
+  COMMENTS.filter(c => getTopLevel(c.row)).forEach(c => {
+    if (!c.row.querySelector('.hnf-save-btn')) {
+      const saveBtn = document.createElement('button');
+      saveBtn.className = 'hnf-save-btn';
+      saveBtn.textContent = savedJobs[c.id] ? '★' : '☆';
+      saveBtn.title = savedJobs[c.id] ? 'Unsave job' : 'Save job';
+      saveBtn.addEventListener('click', () => toggleSaveJob(c));
+
+      // Insert after the comment header (age/link area)
+      const ageCell = c.row.querySelector('span.age');
+      if (ageCell && ageCell.parentElement) {
+        ageCell.parentElement.appendChild(saveBtn);
+      }
+    }
+  });
 }
 
 // --- filtering ---
@@ -421,6 +460,28 @@ function load() {
         if (obj['prefs:'+storyId]) {
           prefs = {...prefs, ...obj['prefs:'+storyId]};
         }
+        resolve();
+      });
+    } else {
+      resolve();
+    }
+  });
+}
+
+function saveSavedJobs() {
+  if (chrome.storage && chrome.storage.sync) {
+    chrome.storage.sync.set({ 'savedJobs': savedJobs });
+  }
+}
+
+function loadSavedJobs() {
+  return new Promise(resolve => {
+    if (chrome.storage && chrome.storage.sync) {
+      chrome.storage.sync.get(['savedJobs'], (obj) => {
+        if (obj['savedJobs']) {
+          savedJobs = obj['savedJobs'];
+        }
+        updateSavedCount();
         resolve();
       });
     } else {
@@ -572,12 +633,169 @@ function checkApplied() {
   }
 }
 
+// --- Saved Jobs Functions ---
+function toggleSaveJob(comment) {
+  if (savedJobs[comment.id]) {
+    delete savedJobs[comment.id];
+  } else {
+    savedJobs[comment.id] = {
+      id: comment.id,
+      author: comment.author,
+      age: comment.age,
+      body: comment.body,
+      savedAt: new Date().toISOString(),
+      url: `https://news.ycombinator.com/item?id=${comment.id}`,
+      applied: false
+    };
+  }
+  saveSavedJobs();
+  updateSavedCount();
+  updateSaveButtons();
+  renderSavedList();
+}
+
+function updateSaveButtons() {
+  COMMENTS.filter(c => getTopLevel(c.row)).forEach(c => {
+    const btn = c.row.querySelector('.hnf-save-btn');
+    if (btn) {
+      btn.textContent = savedJobs[c.id] ? '★' : '☆';
+      btn.title = savedJobs[c.id] ? 'Unsave job' : 'Save job';
+    }
+  });
+}
+
+function updateSavedCount() {
+  const count = Object.keys(savedJobs).length;
+  const countEl = $('#hnf-saved-count');
+  if (countEl) countEl.textContent = count;
+}
+
+function toggleSidebar() {
+  const sidebar = $('#hnf-sidebar');
+  sidebar.classList.toggle('hnf-sidebar-open');
+  renderSavedList();
+}
+
+function closeSidebar() {
+  $('#hnf-sidebar').classList.remove('hnf-sidebar-open');
+}
+
+function renderSavedList() {
+  const listEl = $('#hnf-saved-list');
+  if (!listEl) return;
+
+  const jobs = Object.values(savedJobs).sort((a, b) =>
+    new Date(b.savedAt) - new Date(a.savedAt)
+  );
+
+  if (jobs.length === 0) {
+    listEl.innerHTML = '<div class="hnf-empty">No saved jobs yet</div>';
+    return;
+  }
+
+  listEl.innerHTML = jobs.map(job => `
+    <div class="hnf-saved-item ${job.applied ? 'hnf-applied' : ''}" data-id="${job.id}">
+      <div class="hnf-saved-header">
+        <strong>${job.author}</strong>
+        <span class="hnf-saved-age">${job.age}</span>
+      </div>
+      <div class="hnf-saved-body">${truncate(job.body, 200)}</div>
+      <div class="hnf-saved-actions">
+        <label class="hnf-applied-checkbox">
+          <input type="checkbox" class="hnf-applied-check" data-id="${job.id}" ${job.applied ? 'checked' : ''} />
+          Applied
+        </label>
+        <a href="${job.url}" target="_blank">View</a>
+        <button class="hnf-unsave-btn" data-id="${job.id}">Remove</button>
+      </div>
+    </div>
+  `).join('');
+
+  // Wire up remove buttons
+  $$('.hnf-unsave-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      delete savedJobs[id];
+      saveSavedJobs();
+      updateSavedCount();
+      updateSaveButtons();
+      renderSavedList();
+    });
+  });
+
+  // Wire up applied checkboxes
+  $$('.hnf-applied-check').forEach(checkbox => {
+    checkbox.addEventListener('change', (e) => {
+      const id = checkbox.getAttribute('data-id');
+      if (savedJobs[id]) {
+        savedJobs[id].applied = e.target.checked;
+        saveSavedJobs();
+        renderSavedList();
+      }
+    });
+  });
+}
+
+function truncate(text, maxLen) {
+  if (text.length <= maxLen) return text;
+  return text.substring(0, maxLen) + '...';
+}
+
+function exportSavedJobs() {
+  const jobs = Object.values(savedJobs);
+  if (jobs.length === 0) {
+    alert('No saved jobs to export');
+    return;
+  }
+
+  const headers = ['ID', 'Author', 'Age', 'Applied', 'Saved At', 'URL', 'Comment'];
+  const rows = [headers];
+
+  jobs.forEach(job => {
+    rows.push([
+      job.id,
+      job.author,
+      job.age,
+      job.applied ? 'Yes' : 'No',
+      new Date(job.savedAt).toLocaleString(),
+      job.url,
+      '"' + job.body.replace(/"/g, '""') + '"'
+    ]);
+  });
+
+  const csvContent = rows.map(row => row.join(',')).join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+
+  if (link.download !== undefined) {
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `hn_saved_jobs_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    alert(`Exported ${jobs.length} saved jobs to CSV`);
+  }
+}
+
+function clearSavedJobs() {
+  if (confirm('Are you sure you want to remove all saved jobs?')) {
+    savedJobs = {};
+    saveSavedJobs();
+    updateSavedCount();
+    updateSaveButtons();
+    renderSavedList();
+  }
+}
+
 // --- boot ---
 (async function main(){
   // Wait a bit for HN to finish loading
   setTimeout(async () => {
     injectBar();
     await load();
+    await loadSavedJobs();
     restoreUI();
     buildIndex();
     applyFilters();
