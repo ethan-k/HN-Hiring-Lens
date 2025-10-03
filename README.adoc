@@ -146,19 +146,6 @@ pnpm run validate
 
 Checks manifest.json and verifies all referenced files exist.
 
-== 📋 Browser Compatibility
-
-* Chrome 88+ (Manifest V3 required)
-* Edge 88+ (Chromium-based)
-
-== 🔮 Future Enhancements
-
-* [ ] Algolia API fallback for robust indexing
-* [ ] Custom technology stack configuration  
-* [ ] Additional export formats (JSON, XML)
-* [ ] Dark mode support
-* [ ] Advanced regex patterns for job detection
-
 == 📝 License
 
 MIT License

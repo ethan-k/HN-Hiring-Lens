@@ -23,8 +23,11 @@ function saveSavedJobs() {
 
 // Update count display
 function updateCount() {
-  const count = Object.keys(savedJobs).length;
-  document.getElementById('count').textContent = count;
+  const allJobs = Object.keys(savedJobs).length;
+  const appliedJobs = Object.values(savedJobs).filter(j => j.applied).length;
+  const savedCount = allJobs - appliedJobs;
+
+  document.getElementById('count').textContent = allJobs;
 }
 
 // Truncate text
@@ -35,17 +38,37 @@ function truncate(text, maxLen) {
 
 // Render saved jobs list
 function renderList() {
-  const listEl = document.getElementById('saved-list');
-  const jobs = Object.values(savedJobs).sort((a, b) =>
+  const savedListEl = document.getElementById('saved-list');
+  const appliedListEl = document.getElementById('applied-list');
+
+  const allJobs = Object.values(savedJobs).sort((a, b) =>
     new Date(b.savedAt) - new Date(a.savedAt)
   );
 
-  if (jobs.length === 0) {
-    listEl.innerHTML = '<div class="empty">No saved jobs yet<br><br>Click the ★ button on any HN job comment to save it here.</div>';
-    return;
+  const savedJobs_filtered = allJobs.filter(j => !j.applied);
+  const appliedJobs_filtered = allJobs.filter(j => j.applied);
+
+  // Render saved jobs tab
+  if (savedJobs_filtered.length === 0) {
+    savedListEl.innerHTML = '<div class="empty">No saved jobs yet<br><br>Click the ★ button on any HN job comment to save it here.</div>';
+  } else {
+    savedListEl.innerHTML = savedJobs_filtered.map(job => renderJobItem(job)).join('');
   }
 
-  listEl.innerHTML = jobs.map(job => `
+  // Render applied jobs tab
+  if (appliedJobs_filtered.length === 0) {
+    appliedListEl.innerHTML = '<div class="empty">No applied jobs yet<br><br>Mark jobs as applied using the checkbox.</div>';
+  } else {
+    appliedListEl.innerHTML = appliedJobs_filtered.map(job => renderJobItem(job)).join('');
+  }
+
+  // Wire up event listeners
+  wireEventListeners();
+}
+
+// Render a single job item
+function renderJobItem(job) {
+  return `
     <div class="saved-item ${job.applied ? 'applied' : ''}" data-id="${job.id}">
       <div class="saved-header">
         <strong>${job.author}</strong>
@@ -61,10 +84,7 @@ function renderList() {
         <button class="remove-btn" data-id="${job.id}">Remove</button>
       </div>
     </div>
-  `).join('');
-
-  // Wire up event listeners
-  wireEventListeners();
+  `;
 }
 
 // Wire up event listeners for dynamically created elements
@@ -87,7 +107,11 @@ function wireEventListeners() {
       if (savedJobs[id]) {
         savedJobs[id].applied = e.target.checked;
         saveSavedJobs();
-        renderList();
+        // Add small delay to prevent race condition
+        setTimeout(() => {
+          updateCount();
+          renderList();
+        }, 50);
       }
     });
   });
@@ -141,6 +165,19 @@ function clearAll() {
   }
 }
 
+// Tab switching
+function switchTab(tabName) {
+  // Update tab buttons
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-tab') === tabName);
+  });
+
+  // Update tab content
+  document.querySelectorAll('.tab-content').forEach(content => {
+    content.classList.toggle('active', content.id === `${tabName}-list`);
+  });
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
   await loadSavedJobs();
@@ -148,6 +185,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Wire up action buttons
   document.getElementById('export-saved').addEventListener('click', exportCSV);
   document.getElementById('clear-saved').addEventListener('click', clearAll);
+
+  // Wire up tab buttons
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      switchTab(btn.getAttribute('data-tab'));
+    });
+  });
 
   // Listen for storage changes (when jobs are saved from content script)
   chrome.storage.onChanged.addListener((changes, namespace) => {

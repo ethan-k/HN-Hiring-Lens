@@ -18,6 +18,7 @@ const DEFAULT_PREFS = {
 };
 let prefs = {...DEFAULT_PREFS};
 let savedJobs = {}; // Format: { [commentId]: { id, author, age, body, savedAt } }
+let customTechStacks = []; // Format: ["Vue", "Django", "MongoDB", ...]
 
 // --- mount UI ---
 function injectBar() {
@@ -82,6 +83,13 @@ function injectBar() {
         <label><input type="checkbox" class="hnf-stack" value="kubernetes"/>Kubernetes</label>
         <label><input type="checkbox" class="hnf-stack" value="postgres"/>Postgres</label>
         <label><input type="checkbox" class="hnf-stack" value="kafka"/>Kafka</label>
+        <span id="hnf-custom-stacks"></span>
+      </div>
+    </div>
+    <div class="hnf-row">
+      <div class="hnf-custom-stack-input">
+        <input id="hnf-add-stack" placeholder="Add custom tech (e.g., Vue, Django, MongoDB)" />
+        <button id="hnf-add-stack-btn">+ Add</button>
       </div>
     </div>
     <div class="hnf-row">
@@ -143,10 +151,18 @@ function wireEvents() {
   });
 
   $('#hnf-clear').addEventListener('click', () => {
-    prefs = {...DEFAULT_PREFS}; 
-    save(); 
-    restoreUI(); 
+    prefs = {...DEFAULT_PREFS};
+    save();
+    restoreUI();
     applyFilters();
+  });
+
+  $('#hnf-add-stack-btn').addEventListener('click', addCustomStack);
+  $('#hnf-add-stack').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addCustomStack();
+    }
   });
 
   $('#hnf-check-applied').addEventListener('click', checkApplied);
@@ -200,6 +216,104 @@ function restoreUI() {
   // Restore role type selections
   $$('.hnf-role').forEach(checkbox => {
     checkbox.checked = prefs.roleTypes.includes(checkbox.value);
+  });
+
+  // Render custom tech stacks
+  renderCustomStacks();
+}
+
+// Render custom tech stack checkboxes
+function renderCustomStacks() {
+  const container = $('#hnf-custom-stacks');
+  if (!container) return;
+
+  container.innerHTML = customTechStacks.map(stack => {
+    const isChecked = prefs.stacks.includes(stack.toLowerCase());
+    return `
+      <label class="hnf-custom-stack-label">
+        <input type="checkbox" class="hnf-stack hnf-custom-stack-checkbox" value="${stack.toLowerCase()}" ${isChecked ? 'checked' : ''}/>
+        ${stack}
+        <span class="hnf-remove-stack" data-stack="${stack}" title="Remove">×</span>
+      </label>
+    `;
+  }).join('');
+
+  // Wire up event listeners for custom stack checkboxes
+  $$('.hnf-custom-stack-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', debounce(applyFilters, 120));
+  });
+
+  // Wire up remove buttons
+  $$('.hnf-remove-stack').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const stackName = btn.getAttribute('data-stack');
+      removeCustomStack(stackName);
+    });
+  });
+}
+
+// Add a custom tech stack
+function addCustomStack() {
+  const input = $('#hnf-add-stack');
+  const stackName = input.value.trim();
+
+  if (!stackName) return;
+
+  const normalizedName = stackName.toLowerCase();
+
+  // Check if already exists (case-insensitive)
+  if (customTechStacks.some(s => s.toLowerCase() === normalizedName)) {
+    alert(`"${stackName}" already exists in your custom tech stacks`);
+    input.value = '';
+    return;
+  }
+
+  // Check if it's a built-in stack
+  const builtInStacks = ['go', 'rust', 'java', 'kotlin', 'python', 'typescript', 'react', 'aws', 'gcp', 'kubernetes', 'postgres', 'kafka'];
+  if (builtInStacks.includes(normalizedName)) {
+    alert(`"${stackName}" is already a built-in tech stack`);
+    input.value = '';
+    return;
+  }
+
+  // Add to custom stacks
+  customTechStacks.push(stackName);
+  saveCustomStacks();
+
+  // Clear input and re-render
+  input.value = '';
+  renderCustomStacks();
+  applyFilters();
+}
+
+// Remove a custom tech stack
+function removeCustomStack(stackName) {
+  customTechStacks = customTechStacks.filter(s => s !== stackName);
+
+  // Remove from selected stacks if it was selected
+  const normalizedName = stackName.toLowerCase();
+  prefs.stacks = prefs.stacks.filter(s => s !== normalizedName);
+
+  saveCustomStacks();
+  save();
+  renderCustomStacks();
+  applyFilters();
+}
+
+// Save custom tech stacks to storage
+function saveCustomStacks() {
+  chrome.storage.sync.set({ customTechStacks });
+}
+
+// Load custom tech stacks from storage
+function loadCustomStacks() {
+  return new Promise(resolve => {
+    chrome.storage.sync.get(['customTechStacks'], (obj) => {
+      if (obj.customTechStacks) {
+        customTechStacks = obj.customTechStacks;
+      }
+      resolve();
+    });
   });
 }
 
@@ -274,6 +388,18 @@ function commentObj(row) {
   const id = row.getAttribute('id') || '';
   const text = body.toLowerCase();
 
+  // Detect built-in tech stacks
+  const builtInStacks = Object.keys(RE.stacks).filter(stack => RE.stacks[stack].test(body));
+
+  // Detect custom tech stacks
+  const customStacksDetected = customTechStacks
+    .filter(stack => {
+      // Case-insensitive word boundary match
+      const regex = new RegExp(`\\b${stack.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+      return regex.test(body);
+    })
+    .map(s => s.toLowerCase());
+
   return {
     row, id, author, age, body, bodyEl, text,
     indent: getIndent(row),
@@ -282,7 +408,7 @@ function commentObj(row) {
       onsite: RE.onsite.test(body),
       salary: RE.salary.test(body),
       usOnly: RE.usOnly.test(body),
-      stacks: Object.keys(RE.stacks).filter(stack => RE.stacks[stack].test(body)),
+      stacks: [...builtInStacks, ...customStacksDetected],
       employmentTypes: Object.keys(RE.employmentTypes).filter(type => RE.employmentTypes[type].test(body)),
       seniorities: Object.keys(RE.seniorities).filter(level => RE.seniorities[level].test(body)),
       roleTypes: Object.keys(RE.roleTypes).filter(role => RE.roleTypes[role].test(body))
@@ -664,6 +790,7 @@ function updateSavedCount() {
     injectBar();
     await load();
     await loadSavedJobs();
+    await loadCustomStacks();
     restoreUI();
     buildIndex();
     applyFilters();
