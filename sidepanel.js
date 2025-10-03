@@ -24,8 +24,6 @@ function saveSavedJobs() {
 // Update count display
 function updateCount() {
   const allJobs = Object.keys(savedJobs).length;
-  const appliedJobs = Object.values(savedJobs).filter(j => j.applied).length;
-  const savedCount = allJobs - appliedJobs;
 
   document.getElementById('count').textContent = allJobs;
 }
@@ -41,25 +39,30 @@ function renderList() {
   const savedListEl = document.getElementById('saved-list');
   const appliedListEl = document.getElementById('applied-list');
 
+  if (!savedListEl || !appliedListEl) {
+    console.error('Could not find list elements');
+    return;
+  }
+
   const allJobs = Object.values(savedJobs).sort((a, b) =>
     new Date(b.savedAt) - new Date(a.savedAt)
   );
 
-  const savedJobs_filtered = allJobs.filter(j => !j.applied);
-  const appliedJobs_filtered = allJobs.filter(j => j.applied);
+  const unappliedJobs = allJobs.filter(j => j.applied !== true);
+  const appliedJobsList = allJobs.filter(j => j.applied === true);
 
-  // Render saved jobs tab
-  if (savedJobs_filtered.length === 0) {
+  // Render saved (unapplied) jobs tab
+  if (unappliedJobs.length === 0) {
     savedListEl.innerHTML = '<div class="empty">No saved jobs yet<br><br>Click the ★ button on any HN job comment to save it here.</div>';
   } else {
-    savedListEl.innerHTML = savedJobs_filtered.map(job => renderJobItem(job)).join('');
+    savedListEl.innerHTML = unappliedJobs.map(job => renderJobItem(job)).join('');
   }
 
   // Render applied jobs tab
-  if (appliedJobs_filtered.length === 0) {
+  if (appliedJobsList.length === 0) {
     appliedListEl.innerHTML = '<div class="empty">No applied jobs yet<br><br>Mark jobs as applied using the checkbox.</div>';
   } else {
-    appliedListEl.innerHTML = appliedJobs_filtered.map(job => renderJobItem(job)).join('');
+    appliedListEl.innerHTML = appliedJobsList.map(job => renderJobItem(job)).join('');
   }
 
   // Wire up event listeners

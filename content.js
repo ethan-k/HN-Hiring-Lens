@@ -763,7 +763,6 @@ function toggleSaveJob(comment) {
   saveSavedJobs();
   updateSavedCount();
   updateSaveButtons();
-  renderSavedList();
 }
 
 function updateSaveButtons() {

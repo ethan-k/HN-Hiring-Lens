@@ -5,7 +5,7 @@ const path = require('path');
 
 // Validate manifest.json
 function validateManifest() {
-  const manifestPath = path.join(__dirname, '../hn-thread-filter/manifest.json');
+  const manifestPath = path.join(__dirname, '../manifest.json');
   
   try {
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
@@ -26,7 +26,7 @@ function validateManifest() {
     for (const script of contentScripts) {
       if (script.js) {
         for (const jsFile of script.js) {
-          const filePath = path.join(__dirname, '../hn-thread-filter', jsFile);
+          const filePath = path.join(__dirname, '..', jsFile);
           if (!fs.existsSync(filePath)) {
             console.error(`✗ Missing JS file: ${jsFile}`);
             process.exit(1);
@@ -35,7 +35,7 @@ function validateManifest() {
       }
       if (script.css) {
         for (const cssFile of script.css) {
-          const filePath = path.join(__dirname, '../hn-thread-filter', cssFile);
+          const filePath = path.join(__dirname, '..', cssFile);
           if (!fs.existsSync(filePath)) {
             console.error(`✗ Missing CSS file: ${cssFile}`);
             process.exit(1);
@@ -47,7 +47,7 @@ function validateManifest() {
     // Check icons exist
     if (manifest.icons) {
       for (const [size, iconPath] of Object.entries(manifest.icons)) {
-        const filePath = path.join(__dirname, '../hn-thread-filter', iconPath);
+        const filePath = path.join(__dirname, '..', iconPath);
         if (!fs.existsSync(filePath)) {
           console.error(`✗ Missing icon file: ${iconPath}`);
           process.exit(1);
